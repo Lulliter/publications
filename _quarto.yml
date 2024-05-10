@@ -1,0 +1,24 @@
+project:
+  type: website
+
+website:
+  title: "Lula's Publications & Writings"
+  navbar:
+    left:
+      # - href: index.qmd
+      #   text: Home
+      # - about.qmd
+      - text: "Research"
+        icon: cup-hot-fill # archive-fill # https://icons.getbootstrap.com/?q=home
+        href: writings/index.qmd
+      # - text: "Blog"
+      #   icon: cup-hot-fill # archive-fill # https://icons.getbootstrap.com/?q=home
+      #   href: posts/index.qmd
+format:
+  html:
+    theme: cosmo
+    css: styles.css
+    toc: true
+
+
+

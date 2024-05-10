@@ -1,0 +1,17 @@
+# options specified here will apply to all posts in this folder
+
+# freeze computational output
+# (see https://quarto.org/docs/projects/code-execution.html#freeze)
+freeze: true
+
+format:
+  html:
+    toc: true
+    toc-location: "left"
+#  reduce / DELETE SIDEBAR SPACE
+    grid:
+      body-width: 2000px
+      sidebar-width: 400px # non mi serve perche non c'e'
+      margin-width: 200px
+
+

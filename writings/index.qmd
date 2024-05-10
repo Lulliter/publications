@@ -1,0 +1,322 @@
+---
+title: Writing and Research
+execute:
+  echo: false
+  warning: false
+comments: false
+toc: true
+toc-location: left
+bibliography: Lula-MyPublications-Broad.bib
+---
+
+<!-- # ESEMPI -->
+
+<!-- -->
+
+<!-- # [setup] -->
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = FALSE)
+
+if (!require(pacman)) {install.packages(pacman)} 
+library(pacman)
+
+# pacman::p_ver("distilltools" )
+# pacman::p_exists("distilltools")  # FALSe
+# pacman::p_load_gh("EllaKaye/distilltools") # not on CRAN
+# 
+# pacman::p_ver(  "bib2df")
+# pacman::p_exists("bib2df")  #TRUE
+# pacman::p_ver_diff(  "bib2df")
+# # p_load_gh("ropensci/bib2df") # otherwise warns `as_data_frame() was deprecated in tibble 2.0.0.`
+
+#remotes::install_github("ropensci/bib2df")
+p_load(RefManageR,
+		 #  bib2df,
+		 bibtex,
+		 janitor,
+		 lubridate,
+		 glue,
+		 tidyverse, 
+		 htmltools,
+		 distilltools,
+		 bib2df
+	)
+
+```
+
+<!-- # [load] -->
+
+<!-- 1.A LOAD & CLEAN ZOTERO'S Lula-MyPublications-Broad.bib -->
+
+```{r  pubs_zot_link}
+# - Load bibliography (exported from Zotero)
+bib_path <- here::here ("writings","Lula-MyPublications-Broad.bib")
+
+# - as list  (NEEDED for functions later)
+mybib <- RefManageR::ReadBib(bib_path, check = FALSE )  #bibtex::do_read_bib(file = bib_path, encoding = "unknown", srcfile)
+
+# - as dataframe
+mybib_df_raw <- bib2df::bib2df(bib_path)  
+
+# - Format dataframe version of bibliography
+mybib_df <-
+	mybib_df_raw %>%
+ clean_names() %>%
+	select(key = bibtexkey, date, author, 
+			 title, journaltitle, doi, 
+			 category,type, url, 
+			 url_preprint, # added in Zotero tex.url_preprint: https://...
+			 file, abstract ) %>%
+	mutate(
+		# date = parse_date_time(date, "ymd",
+		# 							  #select_formats = .select_formats
+		# 							  drop = FALSE),
+		yyyy_mm = str_sub(date, start = 1, end = 7), # I have some irregularities in format  
+		date_parsed = parse_date_time(yyyy_mm,  "ym", truncated = 2 ),
+		year = year(date_parsed), 
+		month = month(date_parsed)) %>%
+	arrange(desc(year), key) %>% 
+	dplyr::relocate(c("yyyy_mm" ,    "year" ,        "month"  ), .after =date)
+
+# Set RefManageR options (needed to avoid the "[1]")
+oldopts <- RefManageR::BibOptions(
+	style = "text",
+	bib.style = "authoryear", 
+	no.print.fields = c("doi", "url", "urldate", "eprint", "eprinttype"),
+	max.names = 50, # maximum number of names to display before using “et al.”
+	dashed = FALSE, 
+	sorting = "ydnt"
+)
+
+# - Load additional metadata
+mybib_meta <- tibble::tribble( 
+	~"url_pub", ~"url_pdf",~ "url_rg", ~"url_repo", ~"url_arch", ~"url_osf", ~"url_other", ~"url_blog" ) 
+mybib_meta[1:nrow(mybib_df), ] <- as.character(NA)
+
+# bind 
+mybib_df2 <- cbind(mybib_df, mybib_meta)
+# names(mybib_df2)
+# rm(mybib, mybib_df, mybib_df_raw, mybib_meta)
+```
+
+<!-- # [url] -->
+
+<!-- 2.A (pubs) Distribute **url** column to right columns (which will have the names of icons later) -->
+
+<!-- OKKIO: NEED TO FIX "EXTRA" IN ZOTERO TO MAKE IT WORK ...  -->
+
+```{r }
+# ========== Distribute **url** column to right columns (which will have the names of icons later)
+# Column A [for this value of col C] <- (like)    Column B [for THE SAME value of col C]
+# P-Rev Articles [Official] --> url_pub
+mybib_df2$url_pub[mybib_df2$type == "Peer-reviewed"] <- mybib_df2$url[mybib_df2$type == "Peer-reviewed"]
+# P-Rev Articles [preprint] --> url_preprint some ERA GIA SALVATO GIUSTO DA SOLO!!!!
+# check 
+check <-  mybib_df2 [!is.na (mybib_df2$url) & mybib_df2$type != "Peer-reviewed" , c("key", "type", "url")] 
+#check
+# THESIS in --> url_arch 
+mybib_df2$url_arch[ mybib_df2$type == "Thesis" ] <- mybib_df2$url [ mybib_df2$type == "Thesis" ]
+# check 
+check <-  mybib_df2 [!is.na (mybib_df2$url) & is.na(mybib_df2$url_arch ) & is.na(mybib_df2$url_pub),
+							c("key", "type", "url")] 
+#check
+#  in RG --> url_rg
+mybib_df2$url_rg <- ifelse( str_detect(mybib_df2$url, "researchgate.net") ,  mybib_df2$url, mybib_df2$url_rg)
+# check 
+check <-  mybib_df2 [ !is.na (mybib_df2$url) & 
+							 	is.na(mybib_df2$url_arch ) & is.na(mybib_df2$url_pub) & is.na(mybib_df2$url_rg), 
+							 c("key", "type", "url")] 
+#check
+#  Blogs --> url_blog
+mybib_df2$url_blog[mybib_df2$type  %in% c("World Bank Blog", "Personal Blog" , "IDB blog") ] <- mybib_df2$url [mybib_df2$type  %in% c("World Bank Blog", "Personal Blog" , "IDB blog") ]
+# check 
+check <-  mybib_df2 [ !is.na (mybib_df2$url) & 
+							 	is.na(mybib_df2$url_pub)  & 
+							 	is.na(mybib_df2$url_arch)  & 
+							 	is.na(mybib_df2$url_blog)    & 
+							 	is.na(mybib_df2$url_rg), 
+							 c("key", "type", "url")] 
+#check
+# ALL the REST -->  url_other (open access)
+rest <- check$key
+mybib_df2$url_other[which(mybib_df2$key %in% rest) ] <- mybib_df2$url[which(mybib_df2$key %in% rest) ] 
+# (GENERAL PDF ) <- NO perche mi incasina !!!!!!!!!!!!!!!!!!!!
+# mybib_df2$url_pdf <- ifelse(str_detect(mybib_df2$url, ".pdf$"),  mybib_df2$url, mybib_df2$url_pdf)
+# - add some empty column for later 
+# mybib_df2$bibtex <- as.character(NA)
+mybib_df2$image <- as.logical(NA)
+
+# ========== Restrict options type >>>> `category2`
+mybib_df2$category2[mybib_df2$type == "Peer-reviewed" ] <- "peer-reviewed" # 4 
+mybib_df2$category2[mybib_df2$type == "Working Paper" ] <- "working"       # 4 
+mybib_df2$category2[mybib_df2$type == "Policy Brief" ] <- "working"
+mybib_df2$category2[mybib_df2$type == "Discussion Paper" ] <- "other"       # 1 (Daigger)
+mybib_df2$category2[mybib_df2$type == "G20 Background Report" ] <- "other" # 2 (OECD / WB)
+mybib_df2$category2[mybib_df2$type == "Conference proceedings" ] <- "other" # 3 ma non li ho considerati (non c'e' il mio nome ...)
+mybib_df2$category2[mybib_df2$type == "World Bank Blog" ] <- "media"  # 2 
+mybib_df2$category2[mybib_df2$type == "Personal Blog" ] <- "media"    # 4 
+mybib_df2$category2[mybib_df2$type == "IDB blog" ] <- "media"         # 1
+mybib_df2$category2[mybib_df2$type == "Thesis" ] <- "theses"   # 4 
+mybib_df2$category2[mybib_df2$type == "Invited Talk" ] <- "conference" # 5 
+mybib_df2$category2[mybib_df2$type == "Presentation" ] <- "conference"
+# ========== I am an author? 
+mybib_df2$lmm <- ifelse(str_detect(mybib_df2$author,  "Mimmi|G20-Italy"), 
+								"yes",
+								"no")
+# names(mybib_df2)
+#  [1] "key" "file-pdf"     "date"         "yyyy_mm"      "year"         "month"        "date_parsed"  "author"       "title"       
+# [10] "journaltitle" "doi"          "type"         "category"     "category2"    "url"          "url_pub"      "url_preprint" "url_pdf"     
+# [19] "url_repo"     "url_arch"     "url_rg"       "url_osf"      "url_other"    "abstract"     "image"       
+mybib_df2 <- mybib_df2 %>% 
+	dplyr::select ( key,  file,
+				date, yyyy_mm, year, month, date_parsed,  
+				author, lmm, title, journaltitle, doi,
+				type, category, category2, 
+				url, #url_pub, 
+				url_preprint, url_pdf, url_repo,   
+				url_arch, url_rg, url_osf, 
+				url_other, url_blog, 
+				abstract,   image)
+
+# names of column like Academicons / FA 
+# added in `header.html`
+mybib_df_acad <- mybib_df2
+```
+
+```{r  distri_link_pubs}
+## ---- adding some more transformations to obtain link for the button 
+
+## --  OK urls distributed 
+# names(mybib_df_acad)[names(mybib_df2) == "url_pub"] <- "elsevier"
+names(mybib_df_acad)[names(mybib_df2) == "url_preprint"] <- "preprint"
+names(mybib_df_acad)[names(mybib_df2) == "url_repo"] <- "github" # FA
+names(mybib_df_acad)[names(mybib_df2) == "url_rg"] <- "researchgate"
+names(mybib_df_acad)[names(mybib_df2) == "url_osf"] <- "osf"
+names(mybib_df_acad)[names(mybib_df2) == "url_other"] <- "open-access"
+names(mybib_df_acad)[names(mybib_df2) == "url_arch"] <- "archive" # FA
+names(mybib_df_acad)[names(mybib_df2) == "url_blog"] <- "rss" # FA
+names(mybib_df_acad)[names(mybib_df2) == "url_pdf"] <- "pdf" # not used
+```
+
+
+```{r }
+
+# SPECIAL DISTINCTION BETWEEN PERSONAL AND NON PERSONAL BLOGS 
+## --  path engineering for the button `download PDF doc`  
+mybib_df_acad <-  mybib_df_acad %>%
+	mutate(file_dir = fs::path_dir(file ),
+			 # this one sometimes has >1 doc path separated by ";"
+			 file_zot_code = fs::path_rel(file, start = "/Users/luisamimmi/Documents/02_Reference/Zotero/storage/" ),
+			 # this is just the clean "name.pdf" that I need
+			 file_name = fs::path_file(file_zot_code )
+	) %>% 
+	# PERS BLOG 
+	mutate (persblog_PDF = case_when(
+			 str_detect (type , "Personal Blog" )  ~ file_name,
+			 .default =  NA_character_) ) %>% 
+	# NON PERSONAL BLOG 
+	mutate (rss_profess = case_when(
+			 !str_detect (type , "Personal Blog" )  ~ rss,
+			 .default =  NA_character_) )  
+	
+
+
+```
+
+```{r }
+# delete all in env EXCEPT for c(... )
+rm(list=setdiff(ls(), c( "mybib_df2", "mybib", "mybib_df_acad")))
+```
+
+<!-- # [function] -->
+
+<!-- 3  Functions for formatting a citation {now in R/functions_publications}-->
+
+```{r}
+source(here::here("R","functions_publications2.R"))
+# 
+# print_ref_simple(key_select = "mimmi_youth_2009-1",  bib = mytalk)
+
+```
+
+## PUBLICATIONS
+
+
+### Articles in Peer-reviewed Journals
+
+```{r}
+#| include: false
+mybib_df_acad %>% 
+	 filter(category  == "ARTICLE") %>% 
+	select(key, type, category, category2)
+
+```
+
+`r print_ref_buttons3("mimmi_italy_2024")` <br> 
+`r print_ref_buttons3("patel_predicting_2022")` <br> 
+`r print_ref_buttons3("mimmi_informal_2014")` <br> 
+`r print_ref_buttons3("mimmi_econometric_2010")`
+
+### Technical Reports and Other Publications
+
+```{r}
+#| include: false
+mybib_df_acad %>% 
+	 filter(category  == "REPORT" & lmm == "yes") %>% 
+	select(key, type, category, category2)
+```
+
+<!-- `r print_ref_buttons3("mimmi_predicting_2017")`<br>  RIPETE PUBBLICAZIONE -->
+
+`r print_ref_buttons3("rodriguez_applying_2014")`<br> <!-- `r print_ref_buttons3("mimmi_assessing_2012")`<br> RIPETE PUBBLICAZIONE --> 
+`r print_ref_buttons3("mimmi_should_2012")`<br> 
+`r print_ref_buttons3("johannes_snapshot_2010")`<br> 
+`r print_ref_buttons3("mimmi_youth_2009")`
+
+### Technical Reports and Other Publications\*
+
+```{r}
+#| include: false
+mybib_df_acad %>% 
+	 filter(category  == "REPORT" & lmm == "no") %>% 
+	select(key, type, category, category2)
+```
+
+[(\* *editorial role only*)]{style="color: #cc8400;"} <br><br> 
+`r print_ref_buttons3("oecd_building_2021")`<br> 
+`r print_ref_buttons3("world_bank_well_2021")`<br> 
+`r print_ref_buttons3("daigger_future_2019")`
+
+### Misc. Divulgative Pieces
+
+```{r}
+#| include: false
+mybib_df_acad %>% 
+	 filter(category  == "ONLINE" & lmm == "yes") %>% 
+	select(key, type, category, category2)
+```
+
+`r print_ref_buttons3("mimmi_natalita_2023")`<br> 
+`r print_ref_buttons3("mimmi_senza_2022")`<br> 
+`r print_ref_buttons3("mimmi_infrastructure_2021")`<br> 
+`r print_ref_buttons3("mimmi_technological_2019")`<br> 
+`r print_ref_buttons3("mimmi_predicting_2017-1")`<br> 
+`r print_ref_buttons3("mimmi_open_2016")`<br> 
+`r print_ref_buttons3("mimmi_sussidiarieta_2009")`
+
+### Theses
+
+```{r}
+#| include: false
+mybib_df_acad %>% 
+	 filter(category  == "THESIS" & lmm == "yes") %>% 
+	select(key, type, category, category2)
+```
+
+\[*Master of Public Policy*\]<br>`r print_ref_buttons3("mimmi_demand-driven_2008")`<br> \[*BSc equivalent of Economics & Business Administration*\]<br>`r print_ref_buttons3("mimmi_linternazionalizzazione_2001")`
+
+<br>
+
+<center>See also [[{{< ai google-scholar >}} Google Scholar Page](https://scholar.google.com/citations?hl=en&user=OBYla5gAAAAJ)]{style="color:#9b2374; font-weight:bold; background-color:#ebd3e3;"} and [[{{< ai researchgate >}} ResearchGate Profile](https://www.researchgate.net/profile/Luisa-Mimmi)]{style="color:#9b2374; font-weight:bold; background-color:#ebd3e3;"}</center>
