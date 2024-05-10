@@ -54,7 +54,7 @@ fi
 git commit -m "$msg"
 =======
 
-git commit -m "small correction RESEARCH + R"
+git commit -m "1st commit 🌷"
 git commit -m "added _variables.yml & cgd tools/01_git.qmd 🙌"
 		# git commit -m "revision INSTALL + cleanup slides 2"  -m "01_... + 00_carico_tab-contesto.qmd "
 

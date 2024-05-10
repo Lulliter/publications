@@ -1,5 +1,6 @@
 project:
   type: website
+  output-dir: docs # to publish website on GithubPages
 
 website:
   title: "Lula's Publications & Writings"
