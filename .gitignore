@@ -1,2 +1,7 @@
 .Rproj.user
 /.quarto/
+.Rprofile
+ _freeze/
+
+# ignore only data folders from the root of the project
+/writings/PDF/*

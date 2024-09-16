@@ -13,15 +13,6 @@ quarto preview
 # ====== RENDER the entire site
 quarto render
 
-# render a single file only
-project:
-  render:
-    - section1.qmd
-    - section2.qmd
-    - "*.qmd"
-    - "!ignored.qmd"
-    - "!ignored-dir/"
-
 # ====== PUBLISH
 # quarto publish  # quasto stronzo mi crea la git branch "gh-pages" -->  FIX delete branch
 			#git branch -d branch_to_delete # { not allowed IF I am on it}
@@ -54,7 +45,7 @@ fi
 git commit -m "$msg"
 =======
 
-git commit -m "1st commit 🌷"
+git commit -m "+ docs/"
 git commit -m "added _variables.yml & cgd tools/01_git.qmd 🙌"
 		# git commit -m "revision INSTALL + cleanup slides 2"  -m "01_... + 00_carico_tab-contesto.qmd "
 
